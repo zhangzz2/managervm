@@ -1,0 +1,72 @@
+<?xml version="1.0"?>
+<domain type="kvm" xmlns:qemu="http://libvirt.org/schemas/domain/qemu/1.0">
+    <name>66755421ed7f4f6db45d73de1e593e7a</name>
+    <uuid>66755421-ed7f-4f6d-b45d-73de1e593e7a</uuid>
+    <description>virtualRouter.l3.6fe213dd073748d8a445f3b83a5a1060</description>
+    <clock offset="utc" />
+    <on_poweroff>destroy</on_poweroff>
+    <on_crash>restart</on_crash>
+    <on_reboot>restart</on_reboot>
+    <metadata>
+        <zstack>True</zstack>
+        <internalId>17</internalId>
+    </metadata>
+    <vcpu placement="static">1</vcpu>
+    <cputune>
+        <shares>128</shares>
+    </cputune>
+    <memory unit="k">524288</memory>
+    <currentMemory unit="k">524288</currentMemory>
+    <os>
+        <type arch="x86_64" machine="pc">hvm</type>
+        <boot dev="hd" />
+    </os>
+    <features>
+        <acpi />
+        <apic />
+        <pae />
+    </features>
+    <devices>
+        <emulator>/usr/libexec/qemu-kvm</emulator>
+        <input bus="usb" type="tablet" />
+        <interface type="bridge">
+            <mac address="fa:69:70:87:be:00" />
+            <alias name="vnic17.0" />
+            <source bridge="br_eth1" />
+            <!--<source bridge="lichvirbr0" />-->
+            <model type="virtio" />
+            <target dev="vnic17.0" />
+        </interface>
+        <disk device="disk" type="file">
+            <source file="/root/zhangjf_vm/CentOS6.4.tpl">
+            <!--<source file="/root/zhangjf_vm/ttylinux.raw">-->
+            </source>
+            <target bus="virtio" dev="vda" />
+            <driver cache='none' name='qemu' type='raw' io='native'/>
+        </disk>
+        <!--<disk device="disk" type="network">-->
+            <!--<source name="bak-t-c9cc466c8eba4232bae51804104ee8b6/ee0d877630cb46d1be4c800469731fe6" protocol="lichbd"/>-->
+            <!--<target bus="virtio" dev="vda" />-->
+            <!--<driver cache="none" io="native" name="qemu" type="raw" />-->
+        <!--</disk>-->
+        <graphics autoport="yes" port="5900" type="vnc">
+            <listen address="0.0.0.0" type="address" />
+        </graphics>
+        <channel type="unix">
+            <source mode="bind" path="/var/lib/zstack/kvm/agentSocket/applianceVm.66755421ed7f4f6db45d73de1e593e7a" />
+            <target name="applianceVm.vport" type="virtio" />
+        </channel>
+<!--
+-->
+    </devices>
+    <!--
+    <qemu:commandline>
+        <qemu:arg value="-set" />
+        <qemu:arg value="device.virtio-disk0.scsi=off" />
+        <qemu:arg value="-set" />
+        <qemu:arg value="device.virtio-disk0.config-wce=off" />
+        <qemu:arg value="-set" />
+        <qemu:arg value="device.virtio-disk0.x-data-plane=on" />
+    </qemu:commandline>
+    -->
+</domain>

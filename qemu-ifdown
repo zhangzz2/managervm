@@ -1,0 +1,16 @@
+#!/bin/sh
+#
+# Copyright IBM, Corp. 2010  
+#
+# Authors:
+#  Anthony Liguori <aliguori@us.ibm.com>
+#
+# This work is licensed under the terms of the GNU GPL, version 2.  See
+# the COPYING file in the top-level directory.
+
+# Set to the name of your bridge
+#! /bin/sh
+switch=lichvirbr0
+brctl delif ${switch} $1
+ifconfig $1 down
+
