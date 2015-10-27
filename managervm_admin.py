@@ -13,139 +13,8 @@ import time
 
 from paramiko import SSHException
 
-VM_SYSTEMDISK = "/lichbd/managervm/managervm_systemdisk"
-
-def DINFO(msg):
-    print datetime.datetime.now(), msg
-
-def DWARN(msg):
-    print >> sys.stderr, datetime.datetime.now(), msg
-
-def DERROR(msg):
-    print >> sys.stderr, datetime.datetime.now(), msg
-
-class Exp(Exception):
-    def __init__(self, errno, err, out = None):
-        self.errno = errno
-        self.err = err
-        self.out = out
-
-    def __str__(self):
-        exp_info = 'errno:%s, err:%s'%(self.errno, self.err)
-        if self.out is not None:
-            exp_info += ' stdout:' + self.out
-        return repr(exp_info)
-
-def _session_recv(session):
-    try:
-        data = session.recv(4096)
-    except socket.timeout as err:
-        data = ""
-
-    return data
-
-def _session_recv_stderr(session):
-    try:
-        data = session.recv_stderr(4096)
-    except socket.timeout as err:
-        data = ""
-
-    return data
-
-def exec_cmd_remote(host, cmd, user = "root", password=None, timeout = 1, exception=False):
-    stdout = ""
-    stderr = ""
-    status = 0
-
-    client = paramiko.SSHClient()
-    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-
-    try:
-        client.connect(host, 22, user, password, timeout = timeout)
-        transport = client.get_transport()
-        session = transport.open_channel(kind='session')
-        session.settimeout(3)
-        session.exec_command(cmd)
-
-        while True:
-            if session.recv_ready():
-                data = _session_recv(session)
-                stdout = stdout + data
-
-            if session.recv_stderr_ready():
-                data = _session_recv_stderr(session)
-                stderr = stderr + data
-
-            if session.exit_status_ready():
-                while True:
-                    data = _session_recv(session)
-                    if data == "":
-                        break
-                    stdout = stdout + data
-
-                while True:
-                    data = _session_recv_stderr(session)
-                    if data == "":
-                        break
-                    stderr = stderr + data
-
-                break
-
-        status = session.recv_exit_status()
-
-    except socket.timeout as err:
-        raise Exp(err.errno, 'Socket timeout')
-    except socket.error as err:
-        raise Exp(err.errno, err.strerror)
-    except paramiko.AuthenticationException as err:
-        raise Exp(250, 'Authentication failed')
-
-    session.close()
-    client.close()
-
-    if exception and status != 0:
-        raise Exp(status, stderr)
-        
-    return stdout, stderr, status
-
-
-def alarm_handler(signum, frame):
-    raise Exception(errno.ETIME, "command execute time out")
-
-def exec_cmd(cmd, retry = 3, p = True, timeout = 0):
-    env = {"LANG" : "en_US", "LC_ALL" : "en_US", "PATH" : os.getenv("PATH")}
-    #cmd = self.lich_inspect + " --movechunk '%s' %s  --async" % (k, loc)
-    _retry = 0
-    if (p):
-        _dmsg(cmd)
-    while (1):
-        p = None
-        try:
-            p = subprocess.Popen(cmd, stdout=subprocess.PIPE, env = env)
-        except Exception, e:
-            raise Exp(e.errno, cmd + ": command execute failed")
-
-        if timeout != 0:
-            signal.signal(signal.SIGALRM, alarm_handler)
-            signal.alarm(timeout)
-        try:
-            stdout, stderr = p.communicate()
-            signal.alarm(0)
-            ret = p.returncode
-            if (ret == 0):
-                return stdout, stderr
-            elif (ret == errno.EAGAIN and _retry < retry):
-                _retry = _retry + 1
-                time.sleep(1)
-                continue
-            else:
-                #_derror("cmd %s" % (cmd1))
-                raise Exp(ret, cmd1 + ": " + os.strerror(ret))
-
-        except KeyboardInterrupt as err:
-            _dwarn("interupted")
-            p.kill()
-            exit(errno.EINTR)
+from managervm_utils import VM_SYSTEMDISK
+from managervm_utils import DINFO, DWARN, DERROR, exec_cmd, exec_cmd_remote
 
 def _vm_is_running_host(host):
     cmd = 'ps aux|grep kvm|grep %s' % ('managervm_systemdisk')
@@ -176,7 +45,7 @@ def is_lich_ready():
 
 def is_managervm_ready():
     _path = "/lichbd/managervm"
-    ready = get_attr(_path, 'ready', 'no')
+    ready = get_attr('ready', 'no')
     return ready == 'yes'
 
 def get_host_runningvm():
@@ -193,22 +62,6 @@ def vm_is_running():
 
     return False
 
-def get_attr(_path, _key, _default=None):
-    cmd = " /opt/mds/lich/libexec/lich --attrget %s %s" % (_path, _key)
-    try:
-        stdout, stderr = exec_cmd(cmd)
-        return stdout.strip()
-    except Exp, e:
-        DERROR(str(e))
-
-    if _default is None:
-        raise Exp(e.errno, str(e))
-
-    #todo no enokey
-    if e.errno = 126:
-        return _default
-    else:
-        raise Exp(e.errno, str(e))
 
 def find_bridge_having_physical_interface(host, ifname):
     cmd = "brctl show|sed -n '2,$p'|cut -f 1,6"
@@ -316,17 +169,16 @@ def other_prep(host, channel):
     DINFO([host, 'qemu-ifup deploy ok'])
 
 def vm_start(host):
-    _path = "/lichbd/managervm"
     #cpu 1, mem 512, lichvirbr0, "fa:a1:99:c8:e7:25" "/opt/mds/managervm/agentSocket/applianceVm"  "vnc: 87"
     #qemu-system-x86_64 --enable-kvm -smp 1 -m 512 -drive file=lichbd:managervm/managervm_systemdisk,id=drive1,format=raw,cache=none,if=none,aio=native -device virtio-blk-pci,drive=drive1,scsi=off,x-data-plane=on  -net nic,macaddr=fa:a1:99:c8:e7:25 -net tap,script=/root/zhangjf_vm/qemu-ifup-public -chardev socket,id=charchannel0,path=/opt/mds/managervm/agentSocket/applianceVm,server,nowait -device virtio-serial -device virtserialport,nr=1,chardev=charchannel0,id=channel0,name=applianceVm.vport -vnc :87 -daemonize
-    cpu = get_attr(_path, 'cpu')
-    mem = get_attr(_path, 'mem')
-    bridge = get_attr(_path, 'bridge')
-    eth = get_attr(_path, 'eth')
-    mac = get_attr(_path, 'mac')
-    ip = get_attr(_path, 'ip')
-    channel = get_attr(_path, 'channel')
-    vnc = get_attr(_path, 'vnc')
+    cpu = get_attr('cpu')
+    mem = get_attr('mem')
+    bridge = get_attr('bridge')
+    eth = get_attr('eth')
+    mac = get_attr('mac')
+    ip = get_attr('ip')
+    channel = get_attr('channel')
+    vnc = get_attr('vnc')
 
     systemdisk = "lichbd:lichbd:managervm/managervm_systemdisk"
     ifup = "/root/zhangjf_vm/qemu-ifup-public"
