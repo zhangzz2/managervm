@@ -24,8 +24,12 @@ def make_sure_vm_start():
         return None
 
     host = mutils.select_host()
+    mutils.DINFO("select host %s, and start" % (host))
     mutils.vm_start(host)
-    mutils.DINFO("manager vm select host %s, and start" % (host))
+    mutils.DINFO("vm running...")
+    mutils.DINFO("wait network...")
+    wait_network()
+    mutils.DINFO("network ok")
 
 """
 op_admin: '192.168.1.1';
@@ -38,11 +42,18 @@ op_cpu: '';
 op_mem: '';
 """
 
-def wait_network():
-    ip = get_attr('ip')
-    info = get_vminfo()
+def wait_network(host):
+    ip = mutils.get_attr('ip')
+    host = get_host_runningvm():
     while True:
-        if ping_ok(ip):
+        if mutils.ping_ok(ip):
+            break
+
+        info = mutils.get_inject_info()
+        DINFO("inject info %s" % (info))
+        mutils.inject_info(host, info)
+        DINFO("inject info ok")
+        time.sleep(3)
 
 def worker():
     if not mutils.is_lich_ready():
@@ -68,9 +79,6 @@ def worker():
     mutils.DINFO("manager vm is stopped, start it ...")
     make_sure_vm_start()
     mutils.DINFO("manager vm start ok.")
-    mutils.DINFO("wait network...")
-    wait_network()
-    mutils.DINFO("network ok")
 
 if __name__ == "__main__":
     worker()

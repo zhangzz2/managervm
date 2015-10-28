@@ -13,8 +13,6 @@ import time
 
 from paramiko import SSHException
 
-#todo del DINFO, this module will not use DINFO
-
 VM_SYSTEMDISK = "/lichbd/managervm/managervm_systemdisk"
 VM_SYSTEMDISK_QEMU = "lichbd:managervm/managervm_systemdisk"
 VM_CHANNEL = "/opt/mds/managervm/agentSocket/applianceVm,server"
@@ -122,7 +120,7 @@ def exec_cmd(cmd, retry = 3, p = False, timeout = 0):
     #cmd = self.lich_inspect + " --movechunk '%s' %s  --async" % (k, loc)
     _retry = 0
     if (p):
-        DINFO(cmd)
+        print(cmd)
     while (1):
         p = None
         try:
@@ -215,6 +213,12 @@ def set_vnc():
 def ping_ok(ip):
     pass
 
+def get_inject_info():
+    pass
+
+def inject_info(host, info):
+    pass
+
 def _raw_input(info, default=None):
     value = raw_input(info)
     if value.strip() == "":
@@ -242,17 +246,17 @@ def vm_start(host):
     other_prep(host)
 
     cmd = "qemu-system-x86_64 --enable-kvm -smp %s -m %s -drive file=%s,id=drive1,format=raw,cache=none,if=none,aio=native -device virtio-blk-pci,drive=drive1,scsi=off,x-data-plane=on  -net nic,macaddr=%s -net tap,script=%s -chardev socket,id=charchannel0,path=%s,server,nowait -device virtio-serial -device virtserialport,nr=1,chardev=charchannel0,id=channel0,name=applianceVm.vport -vnc :%s -daemonize" % (cpu, mem, systemdisk, mac, ifup_file, channel, vnc)
-    DINFO([host, cmd])
+    print([host, cmd])
 
     stdout, stderr, status = exec_cmd_remote(host, cmd)
-    DINFO(stdout)
+    print(stdout)
     if status != 0:
         raise Exp(status, stderr)
 
 def vm_stop(host):
     cmd = "set -o pipefail;ps aux|grep kvm|grep %s|grep -v grep|awk '{print $2}'|xargs kill -9" % ('managervm_systemdisk')
     stdout, stderr, status = exec_cmd_remote(host, cmd)
-    DINFO(stdout)
+    print(stdout)
     if status != 0:
         raise Exp(status, stderr)
 
@@ -413,7 +417,7 @@ def network_prep(host, bridge, eth, move_route=True):
     cmd = 'ip addr show dev %s | grep "inet "' % (eth)
     stdout, stderr, status = exec_cmd_remote(host, cmd, exception=True)
     if not stdout:
-    	DINFO("Interface %s doesn't set ip address yet. No need to move route. " % eth)
+    	print("Interface %s doesn't set ip address yet. No need to move route. " % eth)
         return
 
     #record old routes
@@ -437,10 +441,10 @@ def other_prep(host):
     channel = VM_CHANNEL
     cmd = "mkdir -p %s" % (os.path.dirname(channel))
     stdout = exec_cmd_remote(host, cmd, exception=True)
-    DINFO([cmd, stdout])
+    print([cmd, stdout])
 
     ifup_script_prep(host)
-    DINFO([host, 'qemu-ifup deploy ok'])
+    print([host, 'qemu-ifup deploy ok'])
 
 
 if __name__ == "__main__":
