@@ -1,7 +1,7 @@
 #!/bin/sh
 set -x
 
-switch=lichvirbr0
+switch=br_eth1
 
 if [ -n "$1" ];then
     /usr/bin/sudo /usr/sbin/tunctl -u `whoami` -t $1
@@ -10,6 +10,7 @@ if [ -n "$1" ];then
     /usr/bin/sudo /usr/sbin/brctl addif $switch $1
     exit 0
 else
-    echo "Error: no interface specified"
+    echo "Error: no eth specified"
     exit 1
 fi
+    
