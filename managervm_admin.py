@@ -10,6 +10,7 @@ import sys
 import subprocess
 import signal
 import time
+import json
 
 from paramiko import SSHException
 
@@ -28,7 +29,7 @@ def make_sure_vm_start():
     mutils.vm_start(host)
     mutils.DINFO("vm running...")
     mutils.DINFO("wait network...")
-    wait_network()
+    wait_network(host)
     mutils.DINFO("network ok")
 
 """
@@ -44,15 +45,14 @@ op_mem: '';
 
 def wait_network(host):
     ip = mutils.get_attr('ip')
-    host = get_host_runningvm():
     while True:
         if mutils.ping_ok(ip):
             break
 
         info = mutils.get_inject_info()
-        DINFO("inject info %s" % (info))
+        mutils.DINFO("inject info %s" % (info))
         mutils.inject_info(host, info)
-        DINFO("inject info ok")
+        mutils.DINFO("inject info ok")
         time.sleep(3)
 
 def worker():

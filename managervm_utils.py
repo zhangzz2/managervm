@@ -10,12 +10,13 @@ import sys
 import subprocess
 import signal
 import time
+import json
 
 from paramiko import SSHException
 
 VM_SYSTEMDISK = "/lichbd/managervm/managervm_systemdisk"
 VM_SYSTEMDISK_QEMU = "lichbd:managervm/managervm_systemdisk"
-VM_CHANNEL = "/opt/mds/managervm/agentSocket/applianceVm,server"
+VM_CHANNEL = "/opt/mds/managervm/agentSocket/applianceVm"
 IFUP_FILE = "/root/zhangjf_vm/qemu-ifup-public"
 
 def DINFO(msg):
@@ -112,7 +113,7 @@ def exec_cmd_remote(host, cmd, user = "root", password=None, timeout = 1, except
     return stdout, stderr, status
 
 
-def alarm_handler(signum, frame):
+def _alarm_handler(signum, frame):
     raise Exception(errno.ETIME, "command execute time out")
 
 def exec_cmd(cmd, retry = 3, p = False, timeout = 0):
@@ -129,7 +130,7 @@ def exec_cmd(cmd, retry = 3, p = False, timeout = 0):
             raise Exp(e.errno, cmd + ": command execute failed")
 
         if timeout != 0:
-            signal.signal(signal.SIGALRM, alarm_handler)
+            signal.signal(signal.SIGALRM, _alarm_handler)
             signal.alarm(timeout)
         try:
             stdout, stderr = p.communicate()
@@ -175,51 +176,52 @@ def get_attr(_key, _default=None):
     else:
         raise Exp(e.errno, str(e))
 
-def set_cpu():
-    _cpu_num = get_attr("cpu", "1")
-    cpu_num = _raw_input("cpu num [%s]:" % (_cpu_num), _cpu_num)
-    set_attr("cpu", cpu_num)
-
-def set_mem():
-    _mem = get_attr("mem", "512")
-    mem = _raw_input("mem MB [%s]:" % (_mem), _mem)
-    set_attr("mem", mem)
-
-def set_bridge():
-    _br = get_attr("bridge", "lichvirbr0")
-    br = _raw_input("bridge name [%s]:" % (_br), _br)
-    set_attr("bridge", br)
-
-def set_eth():
-    _eth = get_attr("eth", "eth0")
-    eth = _raw_input("Ethernet name [%s]:" % (_eth), _eth)
-    set_attr("eth", eth)
-
-def set_mac():
-    _mac = get_attr('mac', genmac())
-    mac = _raw_input("mac [%s]:" % (_mac), _mac)
-    set_attr("mac", mac)
-
-def set_ip():
-    _ip = get_attr('ip', "0.0.0.0")
-    ip = _raw_input("ip [%s]:" % (_ip), _ip)
-    set_attr("ip", ip)
-
-def set_vnc():
-    _vnc = get_attr('vnc', "87")
-    vnc = _raw_input("vnc [%s]:" % (_vnc), _vnc)
-    set_attr("vnc", vnc)
-
 def ping_ok(ip):
-    pass
+    cmd = 'ping %s -c 3 -W 1' % (ip)
+    try:
+        exec_cmd(cmd)
+    except Exp, err:
+        return False
+    return True
 
 def get_inject_info():
-    pass
+    info = {}
+    mac = get_attr("mac")
+    ip = get_attr("ip")
+    netmask = get_attr("netmask")
+    gateway = get_attr("gateway")
+    info.update({'mac': mac, 'ip': ip, 'netamsk': netmask, 'gateway': gateway})
+    return info
 
 def inject_info(host, info):
-    pass
+    script = """
+#!/usr/bin/env python2
+#-*- coding: utf-8 -*-
 
-def _raw_input(info, default=None):
+import json
+import socket
+
+if __name__ == "__main__":
+    info = %s
+    print info
+    info = json.dumps(info)
+    socket_path = "%s"
+    s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+    s.connect(socket_path)
+    s.sendall(info)
+
+    s.close()
+    """ % (json.dumps(info), VM_CHANNEL)
+    src = "/tmp/sendinfo_src.py"
+    dst = "/tmp/sendinfo_dst.py" 
+    with open(src, 'w') as f:
+        f.write(script)
+
+    deploy_file(host, src, dst)
+    cmd = "python %s" % (dst)
+    exec_cmd_remote(host, cmd, exception=True)
+
+def raw_input_default(info, default=None):
     value = raw_input(info)
     if value.strip() == "":
         value = default
@@ -242,8 +244,8 @@ def vm_start(host):
     ifup_file = IFUP_FILE 
     host = select_host()
 
-    network_prep(host, bridge, eth, ifup_file)
-    other_prep(host)
+    _network_prep(host, bridge, eth, ifup_file)
+    _other_prep(host)
 
     cmd = "qemu-system-x86_64 --enable-kvm -smp %s -m %s -drive file=%s,id=drive1,format=raw,cache=none,if=none,aio=native -device virtio-blk-pci,drive=drive1,scsi=off,x-data-plane=on  -net nic,macaddr=%s -net tap,script=%s -chardev socket,id=charchannel0,path=%s,server,nowait -device virtio-serial -device virtserialport,nr=1,chardev=charchannel0,id=channel0,name=applianceVm.vport -vnc :%s -daemonize" % (cpu, mem, systemdisk, mac, ifup_file, channel, vnc)
     print([host, cmd])
@@ -392,7 +394,7 @@ fi
 
     deploy_file(host, src, dst)
 
-def network_prep(host, bridge, eth, move_route=True):
+def _network_prep(host, bridge, eth, move_route=True):
     _bridge = find_bridge_having_physical_eth(host, eth)
     if _bridge and _bridge != bridge:
         raise Exp(1, 'failed to create bridge[{0}], physical eth[{1}] has been occupied by bridge[{2}]'.format(bridge, eth, _bridge))
@@ -437,7 +439,7 @@ def network_prep(host, bridge, eth, move_route=True):
     for r in routes:
         exec_cmd_remote(host, 'ip addr add %s dev %s' % (ip, bridge), exception=True)
 
-def other_prep(host):
+def _other_prep(host):
     channel = VM_CHANNEL
     cmd = "mkdir -p %s" % (os.path.dirname(channel))
     stdout = exec_cmd_remote(host, cmd, exception=True)

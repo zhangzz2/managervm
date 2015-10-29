@@ -7,6 +7,53 @@ from optparse import OptionParser
 
 import managervm_utils as mutils
 
+
+def _set_cpu():
+    _cpu_num = mutils.get_attr("cpu", "1")
+    cpu_num = mutils.raw_input_default("cpu num [%s]:" % (_cpu_num), _cpu_num)
+    mutils.set_attr("cpu", cpu_num)
+
+def _set_mem():
+    _mem = mutils.get_attr("mem", "512")
+    mem = mutils.raw_input_default("mem MB [%s]:" % (_mem), _mem)
+    mutils.set_attr("mem", mem)
+
+def _set_bridge():
+    _br = mutils.get_attr("bridge", "lichvirbr0")
+    br = mutils.raw_input_default("bridge name [%s]:" % (_br), _br)
+    mutils.set_attr("bridge", br)
+
+def _set_eth():
+    _eth = mutils.get_attr("eth", "eth0")
+    eth = mutils.raw_input_default("Ethernet name [%s]:" % (_eth), _eth)
+    mutils.set_attr("eth", eth)
+
+def _set_mac():
+    _mac = mutils.get_attr('mac', mutils.genmac())
+    mac = mutils.raw_input_default("mac [%s]:" % (_mac), _mac)
+    mutils.set_attr("mac", mac)
+
+def _set_ip():
+    _ip = mutils.get_attr('ip', "0.0.0.0")
+    ip = mutils.raw_input_default("ip [%s]:" % (_ip), _ip)
+    mutils.set_attr("ip", ip)
+
+def _set_netmask():
+    _netmask = mutils.get_attr('netmask', "255.255.255.0")
+    netmask = mutils.raw_input_default("netmask [%s]:" % (_netmask), _netmask)
+    mutils.set_attr("netmask", netmask)
+
+def _set_gateway():
+    _gateway = mutils.get_attr('gateway', "0.0.0.0")
+    gateway = mutils.raw_input_default("gateway [%s]:" % (_gateway), _gateway)
+    mutils.set_attr("gateway", gateway)
+
+def _set_vnc():
+    _vnc = mutils.get_attr('vnc', "87")
+    vnc = mutils.raw_input_default("vnc [%s]:" % (_vnc), _vnc)
+    mutils.set_attr("vnc", vnc)
+
+
 def upload_systemdisk(local_file):
     cmd = "set -o pipefail; qemu-img info %s | grep 'file format' | cut -d ':' -f 2" % (local_file)
     stdout, stderr = mutils.exec_cmd(cmd)
@@ -18,13 +65,15 @@ def upload_systemdisk(local_file):
     mutils.exec_cmd(cmd)
 
 def conf():
-    mutils.set_cpu()
-    mutils.set_mem()
-    mutils.set_bridge()
-    mutils.set_eth()
-    mutils.set_mac()
-    mutils.set_ip()
-    mutils.set_vnc()
+    _set_cpu()
+    _set_mem()
+    _set_bridge()
+    _set_eth()
+    _set_mac()
+    _set_ip()
+    _set_netmask()
+    _set_gateway()
+    _set_vnc()
     mutils.set_managervm_ready()
 
 def status():
@@ -34,6 +83,8 @@ def status():
     eth = mutils.get_attr("eth", "")
     mac = mutils.get_attr("mac", "")
     ip = mutils.get_attr("ip", "")
+    netmask = mutils.get_attr("netmask", "")
+    gateway = mutils.get_attr("gateway", "")
     vnc = mutils.get_attr("vnc", "")
     host = mutils.get_host_runningvm()
     is_managervm_ha = mutils.is_managervm_ha()
@@ -55,6 +106,8 @@ def status():
     print 'bridge: %s' % bridge
     print 'eth: %s' % eth
     print 'ip: %s' % ip 
+    print 'netmask: %s' % netmask
+    print 'gateway: %s' % gateway 
     print 'mac: %s' % mac
     print 'vnc: %s' % vnc
 
