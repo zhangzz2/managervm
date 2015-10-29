@@ -17,16 +17,17 @@ from paramiko import SSHException
 VM_SYSTEMDISK = "/lichbd/managervm/managervm_systemdisk"
 VM_SYSTEMDISK_QEMU = "lichbd:managervm/managervm_systemdisk"
 VM_CHANNEL = "/opt/mds/managervm/agentSocket/applianceVm"
+VM_PORT = "/dev/vport0p1"
 IFUP_FILE = "/root/zhangjf_vm/qemu-ifup-public"
 
 def DINFO(msg):
-    print datetime.datetime.now(), msg
+    print datetime.datetime.now(), 'INFO', msg
 
 def DWARN(msg):
-    print >> sys.stderr, datetime.datetime.now(), msg
+    print >> sys.stderr, datetime.datetime.now(), 'WARN', msg
 
 def DERROR(msg):
-    print >> sys.stderr, datetime.datetime.now(), msg
+    print >> sys.stderr, datetime.datetime.now(), 'ERROR', msg
 
 class Exp(Exception):
     def __init__(self, errno, err, out = None):
@@ -193,7 +194,7 @@ def get_inject_info():
     info.update({'mac': mac, 'ip': ip, 'netamsk': netmask, 'gateway': gateway})
     return info
 
-def inject_info(host, info):
+def __write_tmp_script(src, info):
     script = """
 #!/usr/bin/env python2
 #-*- coding: utf-8 -*-
@@ -212,11 +213,15 @@ if __name__ == "__main__":
 
     s.close()
     """ % (json.dumps(info), VM_CHANNEL)
-    src = "/tmp/sendinfo_src.py"
-    dst = "/tmp/sendinfo_dst.py" 
+
     with open(src, 'w') as f:
         f.write(script)
 
+def inject_info(host, info):
+    src = "/tmp/sendinfo_src.py"
+    dst = "/tmp/sendinfo_dst.py" 
+
+    __write_tmp_script(src, info)
     deploy_file(host, src, dst)
     cmd = "python %s" % (dst)
     exec_cmd_remote(host, cmd, exception=True)
@@ -368,7 +373,7 @@ def is_network_device_existing(host, dev):
 def deploy_file(host, src, dst):
     exec_cmd("scp -r %s %s:%s" % (src, host, dst))
 
-def ifup_script_prep(host):
+def __write_script_prep(src):
     bridge = get_attr("bridge")
     script = """#!/bin/sh
 set -x
@@ -387,11 +392,13 @@ else
 fi
     """ % (bridge)
 
-    src = "/tmp/qemu-ifup"
-    dst = IFUP_FILE
     with open(src, 'w') as f:
         f.write(script)
 
+def ifup_script_prep(host):
+    __write_script_prep(src)
+    src = "/tmp/qemu-ifup"
+    dst = IFUP_FILE
     deploy_file(host, src, dst)
 
 def _network_prep(host, bridge, eth, move_route=True):

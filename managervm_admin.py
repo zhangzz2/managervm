@@ -32,17 +32,6 @@ def make_sure_vm_start():
     wait_network(host)
     mutils.DINFO("network ok")
 
-"""
-op_admin: '192.168.1.1';
-op_vmhost: '';
-op_vmhostall: '';
-op_bridge: '';
-op_mac: '';
-op_ip: '';
-op_cpu: '';
-op_mem: '';
-"""
-
 def wait_network(host):
     ip = mutils.get_attr('ip')
     while True:
