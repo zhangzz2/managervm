@@ -323,9 +323,10 @@ def is_admin():
     admin = stdout.strip()
 
     tmpfile = "/tmp/managervm_tmpifconfig"
-    cmd = """set -o pipefail;ifconfig > %s;md5sum %s""" % (tmpfile, tmpfile)
+    cmd = """set -o pipefail;ifconfig|grep addr > %s;md5sum %s""" % (tmpfile, tmpfile)
     stdout_a, stderr = exec_cmd(cmd)
     stdout_b, stderr, status = exec_cmd_remote(admin, cmd, exception=True)
+    #print stdout_a, stdout_b
     return  stdout_a == stdout_b
 
 def is_lich_ready():
@@ -424,10 +425,13 @@ fi
     with open(src, 'w') as f:
         f.write(script)
 
+    cmd = "chmod 755 %s" % (src)
+    exec_cmd(cmd)
+
 def ifup_script_prep(host):
-    __write_script_prep(src)
     src = "/tmp/qemu-ifup"
     dst = IFUP_FILE
+    __write_script_prep(src)
     cmd = "mkdir -p %s" % (os.path.dirname(dst))
     exec_cmd_remote(host, cmd, exception=True)
     deploy_file(host, src, dst)
