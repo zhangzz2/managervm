@@ -268,7 +268,7 @@ def vm_stop(host):
         raise Exp(status, stderr)
 
 def cluster_hosts():
-    stdout, stderr = exec_cmd("cat /opt/mds/etc/cluster.conf |grep -v version")
+    stdout, stderr = exec_cmd("""set -o pipefail;/opt/mds/lich/libexec/lich.admin --list -v|grep -v stop|awk -F":" '{print $1}'|sort|uniq""")
     hosts = stdout.strip().split('\n')
     return hosts
 
