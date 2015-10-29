@@ -190,7 +190,7 @@ def get_inject_info():
     ip = get_attr("ip")
     netmask = get_attr("netmask")
     gateway = get_attr("gateway")
-    info.update({'mac': mac, 'ip': ip, 'netamsk': netmask, 'gateway': gateway})
+    info.update({'mac': mac, 'ip': ip, 'netmask': netmask, 'gateway': gateway})
     return info
 
 def inject_info(host, info):
