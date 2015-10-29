@@ -18,7 +18,12 @@ VM_SYSTEMDISK = "/lichbd/managervm/managervm_systemdisk"
 VM_SYSTEMDISK_QEMU = "lichbd:managervm/managervm_systemdisk"
 VM_CHANNEL = "/opt/mds/managervm/agentSocket/applianceVm"
 VM_PORT = "/dev/vport0p1"
-IFUP_FILE = "/root/zhangjf_vm/qemu-ifup-public"
+IFUP_FILE = "/opt/mds/managervm/qemu-ifup-public"
+
+LICH_PRE = "/opt/mds"
+LICH_ADMIN = os.path.join(LICH_PRE, "lich/libexec/lich.admin")
+LICH_LICH = os.path.join(LICH_PRE, "lich/libexec/lich")
+LICH_INSPECT = os.path.join(LICH_PRE, "lich/libexec/lich.inspect")
 
 def DINFO(msg):
     print datetime.datetime.now(), 'INFO', msg
@@ -154,14 +159,35 @@ def exec_cmd(cmd, retry = 3, p = False, timeout = 0):
 def genmac():
     return 'DE:AD:BE:EF:E1:3C'
 
+def _make_sure_lichdir(lichpath):
+    cmd = "%s --mkdir %s" % (LICH_LICH, lichpath)
+    #print '---lichpath', lichpath
+    #cmd = "mkdir %s" % (lichpath)
+    try:
+        exec_cmd(cmd)
+    except Exp, e:
+        if e.errno == errno.EEXIST:
+            pass
+        else:
+            raise Exp(e.errno, str(e))
+
+def make_sure_lichdir(lichpath):
+    s = lichpath.split("/")[1:-1]
+
+    for i in range(1, len(s)+1):
+        _s = s[:i]
+        _path = '/'.join(_s)
+        _path = os.path.join("/", _path)
+        _make_sure_lichdir(_path)
+
 def set_attr(key, value):
     path = os.path.dirname(VM_SYSTEMDISK)
-    cmd = "/opt/mds/lich/libexec/lich --attrset %s %s %s" % (path, key, value)
+    cmd = "%s --attrset %s %s %s" % (LICH_LICH, path, key, value)
     exec_cmd(cmd)
 
 def get_attr(_key, _default=None):
     path = os.path.dirname(VM_SYSTEMDISK)
-    cmd = " /opt/mds/lich/libexec/lich --attrget %s %s" % (path, _key)
+    cmd = "%s --attrget %s %s" % (LICH_LICH, path, _key)
     try:
         stdout, stderr = exec_cmd(cmd)
         return stdout.strip()
@@ -268,7 +294,7 @@ def vm_stop(host):
         raise Exp(status, stderr)
 
 def cluster_hosts():
-    stdout, stderr = exec_cmd("""set -o pipefail;/opt/mds/lich/libexec/lich.admin --list -v|grep -v stop|awk -F":" '{print $1}'|sort|uniq""")
+    stdout, stderr = exec_cmd("""set -o pipefail;%s --list -v|grep -v stop|awk -F":" '{print $1}'|sort|uniq""" % (LICH_ADMIN))
     hosts = stdout.strip().split('\n')
     return hosts
 
@@ -292,15 +318,19 @@ def _vm_stop_host(host):
     pass
 
 def is_admin():
-    try:
-        exec_cmd("lich.node --stat -v|grep 'status:admin$'")
-    except Exp:
-        return False
-    return True
+    cmd = """set -o pipefail;%s --list -v|grep admin|awk -F":" '{print $1}'""" % (LICH_ADMIN)
+    stdout, stderr = exec_cmd(cmd)
+    admin = stdout.strip()
+
+    tmpfile = "/tmp/managervm_tmpifconfig"
+    cmd = """set -o pipefail;ifconfig > %s;md5sum %s""" % (tmpfile, tmpfile)
+    stdout_a, stderr = exec_cmd(cmd)
+    stdout_b, stderr, status = exec_cmd_remote(admin, cmd, exception=True)
+    return  stdout_a == stdout_b
 
 def is_lich_ready():
     try:
-        exec_cmd("lich.cluster --stat|grep capacity")
+        exec_cmd("%s --list /" % (LICH_LICH))
     except Exp:
         return False
     return True
@@ -344,7 +374,6 @@ def vm_is_running():
         return True
 
     return False
-
 
 def find_bridge_having_physical_eth(host, ifname):
     cmd = "brctl show|sed -n '2,$p'|cut -f 1,6"
@@ -399,6 +428,8 @@ def ifup_script_prep(host):
     __write_script_prep(src)
     src = "/tmp/qemu-ifup"
     dst = IFUP_FILE
+    cmd = "mkdir -p %s" % (os.path.dirname(dst))
+    exec_cmd_remote(host, cmd, exception=True)
     deploy_file(host, src, dst)
 
 def _network_prep(host, bridge, eth, move_route=True):
@@ -454,7 +485,6 @@ def _other_prep(host):
 
     ifup_script_prep(host)
     print([host, 'qemu-ifup deploy ok'])
-
 
 if __name__ == "__main__":
     print "hello, word!"

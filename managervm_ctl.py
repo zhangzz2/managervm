@@ -61,7 +61,9 @@ def upload_systemdisk(local_file):
     if format != "raw":
         raise Exp(1, 'need raw, not support %s' % format)
 
-    cmd = "/opt/mds/lich/libexec/lich --copy :%s %s" % (local_file, mutils.VM_SYSTEMDISK)
+    mutils.make_sure_lichdir(mutils.VM_SYSTEMDISK)
+
+    cmd = "%s --copy :%s %s" % (mutils.LICH_LICH, local_file, mutils.VM_SYSTEMDISK)
     mutils.exec_cmd(cmd)
 
 def conf():
