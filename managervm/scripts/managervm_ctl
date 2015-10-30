@@ -2,11 +2,49 @@
 #-*- coding: utf-8 -*-
 
 import os
+import errno
 import sys
 from optparse import OptionParser
 
 from managervm import managervm_utils as mutils
 
+admin_cron = \
+"""
+#* For details see man 4 crontabs
+
+    PATH=/usr/sbin:/usr/bin:/sbin:/bin:/usr/local/bin
+    MAILTO=""
+
+# Example of job definition:
+# .---------------- minute (0 - 59)
+# |  .------------- hour (0 - 23)
+# |  |  .---------- day of month (1 - 31)
+# |  |  |  .------- month (1 - 12) OR jan,feb,mar,apr ...
+# |  |  |  |  .---- day of week (0 - 6) (Sunday=0 or 7) OR sun,mon,tue,wed,thu,fri,sat
+# |  |  |  |  |
+# *  *  *  *  * user-name command to be executed
+
+*/1 * * * * root managervm_admin --start --daemon >/dev/null 2>&1
+"""
+
+guest_cron = \
+"""
+#* For details see man 4 crontabs
+
+    PATH=/usr/sbin:/usr/bin:/sbin:/bin:/usr/local/bin
+    MAILTO=""
+
+# Example of job definition:
+# .---------------- minute (0 - 59)
+# |  .------------- hour (0 - 23)
+# |  |  .---------- day of month (1 - 31)
+# |  |  |  .------- month (1 - 12) OR jan,feb,mar,apr ...
+# |  |  |  |  .---- day of week (0 - 6) (Sunday=0 or 7) OR sun,mon,tue,wed,thu,fri,sat
+# |  |  |  |  |
+# *  *  *  *  * user-name command to be executed
+
+*/1 * * * * root managervm_guest --start >/dev/null 2>&1
+"""
 
 def _set_cpu():
     _cpu_num = mutils.get_attr("cpu", "1")
@@ -59,7 +97,7 @@ def upload_systemdisk(local_file):
     stdout, stderr = mutils.exec_cmd(cmd)
     format = stdout.strip()
     if format != "raw":
-        raise Exp(1, 'need raw, not support %s' % format)
+        raise mutils.Exp(1, 'need raw, not support %s' % format)
 
     mutils.make_sure_lichdir(mutils.VM_SYSTEMDISK)
 
@@ -152,6 +190,44 @@ def start_vm(host=None):
 def merge_vm():
     raise
 
+def add_admin_cron():
+    cron_path = "/etc/cron.d/managervm_admin_cron"
+    tmppath = "/tmp/managervm_admin_cron"
+
+    if os.path.isfile(cron_path):
+        error = 'cron %s was exists, exit'
+        raise mutils.Exp(errno.EEXIST, error)
+
+    with open(tmppath, "w") as f:
+        f.write(admin_cron)
+
+    cmd = "mv %s %s" % (tmppath, cron_path)
+    mutils.exec_cmd(cmd)
+
+def del_admin_cron():
+    cron_path = "/etc/cron.d/managervm_admin_cron"
+    cmd = "rm -rf %s" % (cron_path)
+    mutils.exec_cmd(cmd)
+
+def add_guest_cron():
+    cron_path = "/etc/cron.d/managervm_guest_cron"
+    tmppath = "/tmp/managervm_guest_cron"
+
+    if os.path.isfile(cron_path):
+        error = 'cron %s was exists, exit'
+        raise mutils.Exp(errno.EEXIST, error)
+
+    with open(tmppath, "w") as f:
+        f.write(guest_cron)
+
+    cmd = "mv %s %s" % (tmppath, cron_path)
+    mutils.exec_cmd(cmd)
+
+def del_guest_cron():
+    cron_path = "/etc/cron.d/managervm_guest_cron"
+    cmd = "rm -rf %s" % (cron_path)
+    mutils.exec_cmd(cmd)
+
 if __name__ == "__main__":
     usage = "usage: %prog [options] arg1 arg2"  
     parser = OptionParser(usage=usage)  
@@ -176,6 +252,18 @@ if __name__ == "__main__":
     parser.add_option('', "--local_file",  
         action="store", dest="local_file", default=None,  
         help="assign a local file that will be used as systemdisk, filename must be absolute path")
+    parser.add_option('', "--add_admin_cron",  
+        action="store_true", dest="add_admin_cron", default=None,  
+        help="add managervm_admin to crontab")
+    parser.add_option('', "--del_admin_cron",  
+        action="store_true", dest="del_admin_cron", default=None,  
+        help="del managervm_admin from crontab")
+    parser.add_option('', "--add_guest_cron",  
+        action="store_true", dest="add_guest_cron", default=None,  
+        help="add managervm_guest to crontab")
+    parser.add_option('', "--del_guest_cron",  
+        action="store_true", dest="del_guest_cron", default=None,  
+        help="del managervm_guest from crontab")
 
     if (len(sys.argv) <= 1):
         parser.print_help()
@@ -205,6 +293,14 @@ if __name__ == "__main__":
             mutils.DERROR("local_file must be absolute path")
             exit(1)
         upload_systemdisk(local_file)
+    elif options.add_admin_cron:
+        add_admin_cron()
+    elif options.del_admin_cron:
+        del_admin_cron()
+    elif options.add_guest_cron:
+        add_guest_cron()
+    elif options.del_guest_cron:
+        del_guest_cron()
     else:
         mutils.DERROR("not support")
         exit(1)
