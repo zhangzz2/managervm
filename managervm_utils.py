@@ -293,17 +293,7 @@ def vm_stop(host):
     if status != 0:
         raise Exp(status, stderr)
 
-def cluster_hosts():
-    stdout, stderr = exec_cmd("""set -o pipefail;%s --list -v|grep -v stop|awk -F":" '{print $1}'|sort|uniq""" % (LICH_ADMIN))
-    hosts = stdout.strip().split('\n')
-    return hosts
-
-def select_host():
-    stdout, stderr = exec_cmd("cat /opt/mds/data/node/config/name")
-    host = stdout.strip()
-    return host
-
-def _vm_is_running_host(host):
+def _is_vm_running_host(host):
     cmd = 'set -o pipefail;ps aux|grep kvm|grep %s|grep -v grep' % ('managervm_systemdisk')
     stdout, stderr, status = exec_cmd_remote(host, cmd)
     #print host, stdout, stderr, status, 'zz'
@@ -311,11 +301,30 @@ def _vm_is_running_host(host):
         return True
     return False
 
-def _vm_start_host(host):
-    pass
+def is_vm_running(hosts):
+    rs = get_hosts_runningvm(hosts)
+    if rs:
+        return True
 
-def _vm_stop_host(host):
-    pass
+    return False
+
+def get_hosts_runningvm(hosts):
+    rs = []
+    for host in hosts:
+        if _is_vm_running_host(host):
+            rs.append(host)
+
+    return rs
+
+def cluster_hosts():
+    stdout, stderr = exec_cmd("""set -o pipefail;%s --list -v|awk -F":" '{print $1}'|sort|uniq""" % (LICH_ADMIN))
+    hosts = stdout.strip().split('\n')
+    return hosts
+
+def select_host():
+    stdout, stderr = exec_cmd("cat /opt/mds/data/node/config/name")
+    host = stdout.strip()
+    return host
 
 def is_admin():
     cmd = """set -o pipefail;%s --list -v|grep admin|awk -F":" '{print $1}'""" % (LICH_ADMIN)
@@ -341,6 +350,11 @@ def is_managervm_ready():
     ready = get_attr('ready', 'no')
     return ready == 'yes'
 
+def is_managervm_ha():
+    path = os.path.dirname(VM_SYSTEMDISK)
+    ha = get_attr('ha', 'no')
+    return ha == 'yes'
+
 def set_managervm_ready():
     path = os.path.dirname(VM_SYSTEMDISK)
     set_attr("ready", "yes")
@@ -356,25 +370,6 @@ def set_managervm_noha():
 def set_managervm_ha():
     path = os.path.dirname(VM_SYSTEMDISK)
     set_attr("ha", "yes")
-
-def is_managervm_ha():
-    path = os.path.dirname(VM_SYSTEMDISK)
-    ha = get_attr('ha', 'no')
-    return ha == 'yes'
-
-def get_host_runningvm():
-    for host in cluster_hosts():
-        if _vm_is_running_host(host):
-            return host
-
-    return None
-
-def vm_is_running():
-    host = get_host_runningvm()
-    if host:
-        return True
-
-    return False
 
 def find_bridge_having_physical_eth(host, ifname):
     cmd = "brctl show|sed -n '2,$p'|cut -f 1,6"

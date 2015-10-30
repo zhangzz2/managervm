@@ -88,17 +88,19 @@ def status():
     netmask = mutils.get_attr("netmask", "")
     gateway = mutils.get_attr("gateway", "")
     vnc = mutils.get_attr("vnc", "")
-    host = mutils.get_host_runningvm()
+    hosts_all = mutils.cluster_hosts()
+    hosts_online = [x for x in hosts_all if mutils.ping_ok(x)]
+    hosts = mutils.get_hosts_runningvm(hosts_online)
     is_managervm_ha = mutils.is_managervm_ha()
     is_managervm_ready = mutils.is_managervm_ready()
     is_lich_ready = mutils.is_lich_ready()
 
     #todo show info of systemdisk 
 
-    if host is None:
-        print "vm was stopped"
+    if hosts:
+        print "vm was running in %s" % (hosts)
     else:
-        print "vm was running in %s" % (host)
+        print "vm was stopped"
 
     print 'managervm HA: %s' % is_managervm_ha
     print 'managervm ready: %s' % is_managervm_ready
@@ -114,13 +116,17 @@ def status():
     print 'vnc: %s' % vnc
 
 def stop_vm():
-    host = mutils.get_host_runningvm()
-    if host is None:
+    hosts_all = mutils.cluster_hosts()
+    hosts_online = [x for x in hosts_all if mutils.ping_ok(x)]
+    hosts = mutils.get_hosts_runningvm(hosts_online)
+    if len(hosts) == 0:
         print 'vm was stopped'
         return
 
-    mutils.vm_stop(host)
-    mutils.set_managervm_noha()
+    for h in hosts:
+        print 'stop vm in host %s' % (h)
+        mutils.vm_stop(h)
+        mutils.set_managervm_noha()
 
 def start_vm(host=None):
     if not mutils.is_managervm_ready():
@@ -131,14 +137,14 @@ def start_vm(host=None):
         mutils.DERROR("lich is not ready")
         return
 
-    _host = mutils.get_host_runningvm()
-    if _host is not None:
-        DERROR("vm was start in host %s" % (_host))
+    hosts_all = mutils.cluster_hosts()
+    hosts_online = [x for x in hosts_all if mutils.ping_ok(x)]
+    hosts = mutils.get_hosts_runningvm(hosts_online)
+    if hosts:
+        DERROR("vm was start in host %s" % (hosts))
         return
 
-    if host is None:
-        host = mutils.select_host()
-
+    host = mutils.select_host()
     print 'vm will start host %s' % (host)
     mutils.vm_start(host)
     mutils.set_managervm_ha()
