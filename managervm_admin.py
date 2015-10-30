@@ -13,7 +13,9 @@ import time
 import json
 
 from paramiko import SSHException
+from optparse import OptionParser
 
+from daemon import Daemon
 import managervm_utils as mutils
 #from managervm_utils import VM_SYSTEMDISK
 #from managervm_utils import DINFO, DWARN, DERROR, exec_cmd, exec_cmd_remote, VM_CHANNEL, VM_SYSTEMDISK
@@ -107,5 +109,59 @@ def worker():
     make_sure_vm_start(hosts_online)
     mutils.DINFO("manager vm start ok.")
 
+class Admin(Daemon):
+    def run(self):
+        worker()
+
 if __name__ == "__main__":
-    worker()
+    usage = "usage: %prog [options] arg1 arg2"
+    parser = OptionParser(usage=usage)
+
+    parser.add_option('', "--start",
+        action="store_true", dest="start", default=None,
+        help="you can start it as a daemon with --daemon")
+    parser.add_option('', "--stop",
+        action="store_true", dest="stop", default=None,
+        help="")
+    parser.add_option('', "--restart",
+        action="store_true", dest="restart", default=None,
+        help="")
+    parser.add_option('', "--stat",
+        action="store_true", dest="stat", default=None,
+        help="")
+    parser.add_option('-d', "--daemon",
+        action="store_true", dest="daemon", default=None,
+        help="")
+
+    if (len(sys.argv) <= 1):
+        parser.print_help()
+        exit(1)
+
+    (options, args) = parser.parse_args()
+
+    pidfile = "/var/run/managervm_admin.pid"
+    stdout = "/var/log/managervm_admin.log"
+    stderr = stdout
+    admin = Admin(pidfile, stdout=stdout, stderr=stderr, name="managervm_admin")
+
+    if options.start:
+        if options.daemon:
+            print 'start as daemon'
+            admin.start()
+        else:
+            worker()
+    elif options.stop:
+        admin.stop()
+    elif options.stat:
+        if admin.stat():
+            cmd = "cat %s" % admin.pidfile
+            stdout, stderr = mutils.exec_cmd(cmd)
+            pid = stdout.strip()
+            print 'running pid: %s' % pid
+        else:
+            print 'stopped'
+    elif options.restart:
+        admin.restart()
+    else:
+        mutils.DERROR("not support")
+        exit(1)
