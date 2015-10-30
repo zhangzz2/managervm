@@ -15,8 +15,8 @@ import json
 from paramiko import SSHException
 from optparse import OptionParser
 
-from daemon import Daemon
-import managervm_utils as mutils
+from managervm.daemon import Daemon
+from managervm import managervm_utils as mutils
 #from managervm_utils import VM_SYSTEMDISK
 #from managervm_utils import DINFO, DWARN, DERROR, exec_cmd, exec_cmd_remote, VM_CHANNEL, VM_SYSTEMDISK
 
