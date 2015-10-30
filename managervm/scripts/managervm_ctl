@@ -195,13 +195,13 @@ def add_admin_cron():
     tmppath = "/tmp/managervm_admin_cron"
 
     if os.path.isfile(cron_path):
-        error = 'cron %s was exists, exit'
-        raise mutils.Exp(errno.EEXIST, error)
+        error = 'cron %s was exists' % (cron_path)
+        mutils.WARN(error)
 
     with open(tmppath, "w") as f:
         f.write(admin_cron)
 
-    cmd = "mv %s %s" % (tmppath, cron_path)
+    cmd = "mv -f %s %s" % (tmppath, cron_path)
     mutils.exec_cmd(cmd)
 
 def del_admin_cron():
@@ -214,13 +214,13 @@ def add_guest_cron():
     tmppath = "/tmp/managervm_guest_cron"
 
     if os.path.isfile(cron_path):
-        error = 'cron %s was exists, exit'
-        raise mutils.Exp(errno.EEXIST, error)
+        error = 'cron %s was exists' % (cron_path)
+        mutils.WARN(error)
 
     with open(tmppath, "w") as f:
         f.write(guest_cron)
 
-    cmd = "mv %s %s" % (tmppath, cron_path)
+    cmd = "mv -f %s %s" % (tmppath, cron_path)
     mutils.exec_cmd(cmd)
 
 def del_guest_cron():
