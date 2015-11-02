@@ -59,7 +59,7 @@ managervm 的工作方式：
     3)
     上传虚拟机模板
     在放有虚拟机镜像的机器上执行
-    managervm-ctl --upload_systemdisk xxxxx
+    managervm-ctl --upload_systemdisk /path/to/systemdisk.img
 
     4)
     然后启动虚拟机, 在lich 的admin所在节点执行。
