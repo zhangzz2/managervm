@@ -39,8 +39,8 @@ setup(
         ],
     install_requires=[],  #removed for better compat
     scripts=[
-        "managervm/scripts/managervm_admin",
-        "managervm/scripts/managervm_guest",
-        "managervm/scripts/managervm_ctl",
+        "managervm/scripts/managervm-admin",
+        "managervm/scripts/managervm-guest",
+        "managervm/scripts/managervm-ctl",
        ],
     )
