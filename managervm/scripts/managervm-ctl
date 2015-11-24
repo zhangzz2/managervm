@@ -24,7 +24,7 @@ admin_cron = \
 # |  |  |  |  |
 # *  *  *  *  * user-name command to be executed
 
-*/1 * * * * root managervm_admin --start --daemon >/dev/null 2>&1
+*/1 * * * * root managervm-admin --start --daemon >/dev/null 2>&1
 """
 
 guest_cron = \
@@ -43,7 +43,7 @@ guest_cron = \
 # |  |  |  |  |
 # *  *  *  *  * user-name command to be executed
 
-*/1 * * * * root managervm_guest --start >/dev/null 2>&1
+*/1 * * * * root managervm-guest --start >/dev/null 2>&1
 """
 
 def _set_cpu():
